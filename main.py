@@ -8,35 +8,38 @@ import time
 from elasticsearch import Elasticsearch
 
 es = Elasticsearch()
-port = '/dev/ttyUSB0'
+port = "/dev/ttyUSB0"
 ard = serial.Serial(port, 9600, timeout=5)
 
 running = True
 
-pattern = re.compile(r'H(?P<humidity>[0-9\.]+)\sC(?P<temperature>[0-9\.]+)')
+pattern = re.compile(r"H(?P<humidity>[0-9\.]+)\sC(?P<temperature>[0-9\.]+)")
 
 storage = []
 
 while running:
-    # Serial read section
-    msg = ard.read(ard.inWaiting()) # read everything in the input buffer
+    msg = ard.read(ard.inWaiting())  # read everything in the input buffer
     if len(msg):
-        # messages = [message for message in str(msg)[:-2].split('\\r\\n') if message.startswith('H')]
-        # m = .search(msg)
 
         data = pattern.findall(str(msg))
         storage += data
 
-        if len(storage) > 5:
-            h_t_sum = reduce(lambda x, y: (float(x[0]) + float(y[0]), float(x[1]) + float(y[1])), storage)
+        if len(storage) >= 5:
+            h_t_sum = reduce(
+                lambda x, y: (
+                    float(x[0]) + float(y[0]),
+                    float(x[1]) + float(y[1]),
+                ),
+                storage,
+            )
             doc = {
-                'date': datetime.utcnow(),
-                'humidity': h_t_sum[0] / len(storage),
-                'temperature': h_t_sum[1] / len(storage)
+                "date": datetime.utcnow(),
+                "humidity": h_t_sum[0] / len(storage),
+                "temperature": h_t_sum[1] / len(storage),
             }
-            print('doc', doc)
-            res = es.index(index="test-index", doc_type='test', body=doc)
+            print("doc", doc)
+            res = es.index(index="test-index", doc_type="test", body=doc)
             storage = []
 
         print(msg, data)
-    time.sleep(5)
+    time.sleep(2*5)
